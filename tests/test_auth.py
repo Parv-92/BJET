@@ -36,7 +36,7 @@ def test_login_success(client):
     )
     response = client.post(
         "/api/v1/auth/login",
-        data={"username": "loginuser@example.com", "password": "Password123!"},
+        json={"email": "loginuser@example.com", "password": "Password123!"},
     )
     assert response.status_code == 200
     data = response.json()
@@ -51,10 +51,11 @@ def test_login_invalid_password(client):
     )
     response = client.post(
         "/api/v1/auth/login",
-        data={"username": "wrongpwd@example.com", "password": "WrongPassword!"},
+        json={"email": "wrongpwd@example.com", "password": "WrongPassword!"},
     )
     assert response.status_code == 401
     assert "Incorrect email or password" in response.json()["detail"]
+
 
 
 def test_read_current_user_me(client, auth_headers):

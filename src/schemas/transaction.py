@@ -36,12 +36,11 @@ class TransactionUpdate(BaseModel):
     status: Optional[TransactionStatus] = None
 
 
-class TransactionResponse(TransactionBase):
+class TransactionListItemResponse(TransactionBase):
     id: int
     user_id: int
     status: TransactionStatus
-    raw_extracted_text: Optional[str] = None
-    receipt_image_path: Optional[str] = None
+    has_receipt: bool = False
     created_at: datetime
     updated_at: datetime
 
@@ -49,3 +48,12 @@ class TransactionResponse(TransactionBase):
     merchant: Optional[MerchantResponse] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class TransactionDetailResponse(TransactionListItemResponse):
+    raw_extracted_text: Optional[str] = None
+
+
+# Alias for backwards compatibility across existing service layers
+TransactionResponse = TransactionDetailResponse
+

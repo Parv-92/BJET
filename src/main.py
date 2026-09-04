@@ -1,9 +1,16 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from src.core.config import settings
 from src.core.database import engine, Base, SessionLocal
+from src.core.exceptions import (
+    NotFoundError,
+    PermissionDeniedError,
+    DuplicateError,
+    ValidationError,
+)
 from src.models import *  # Ensure all models are registered with Base metadata
 from src.repositories.category_repo import category_repo
 from src.api.v1.router import api_router
@@ -31,6 +38,35 @@ def create_app() -> FastAPI:
         redoc_url="/redoc",
         lifespan=lifespan,
     )
+
+    # Centralized domain exception handlers
+    @app.exception_handler(NotFoundError)
+    async def not_found_handler(request: Request, exc: NotFoundError):
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={"detail": str(exc)},
+        )
+
+    @app.exception_handler(PermissionDeniedError)
+    async def permission_denied_handler(request: Request, exc: PermissionDeniedError):
+        return JSONResponse(
+            status_code=status.HTTP_403_FORBIDDEN,
+            content={"detail": str(exc)},
+        )
+
+    @app.exception_handler(DuplicateError)
+    async def duplicate_handler(request: Request, exc: DuplicateError):
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"detail": str(exc)},
+        )
+
+    @app.exception_handler(ValidationError)
+    async def validation_handler(request: Request, exc: ValidationError):
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"detail": str(exc)},
+        )
 
     # Configure CORS
     if settings.BACKEND_CORS_ORIGINS:

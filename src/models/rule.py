@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy import Column, Integer, String, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from src.core.database import Base
@@ -13,6 +13,10 @@ class UserMerchantRule(Base, TimestampMixin):
     merchant_pattern = Column(String(255), nullable=False)  # e.g., "SWIGGY", "ZOMATO", "UBER"
     category_id = Column(Integer, ForeignKey("categories.id", ondelete="CASCADE"), nullable=False)
     priority = Column(Integer, default=1, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "merchant_pattern", name="uq_user_merchant_pattern"),
+    )
 
     # Relationships
     user = relationship("User", back_populates="rules")

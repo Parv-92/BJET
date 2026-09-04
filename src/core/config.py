@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Smart Budget API"
-    VERSION: str = "0.1.0"
+    VERSION: str = "0.2.0"
     API_V1_STR: str = "/api/v1"
 
     # Database
@@ -18,6 +18,13 @@ class Settings(BaseSettings):
 
     # CORS
     BACKEND_CORS_ORIGINS: List[str] = ["*"]
+
+    # Receipt Upload & Processing
+    UPLOAD_DIR: str = "uploads/receipts"
+    MAX_UPLOAD_SIZE_BYTES: int = 10 * 1024 * 1024  # 10 MB
+    ALLOWED_IMAGE_MIME_TYPES: List[str] = ["image/jpeg", "image/png", "image/webp"]
+    ENABLE_IMAGE_PREPROCESSING: bool = True
+    DUPLICATE_TIME_WINDOW_HOURS: int = 24
 
     model_config = SettingsConfigDict(
         env_file=".env",

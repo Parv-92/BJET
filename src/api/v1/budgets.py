@@ -1,8 +1,9 @@
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.orm import Session
 
 from src.api.deps import get_db, get_current_user
+from src.core.exceptions import NotFoundError, ValidationError
 from src.models.user import User
 from src.schemas.budget import BudgetCreate, BudgetResponse, BudgetSummary
 from src.services.budget_service import budget_service
@@ -10,16 +11,27 @@ from src.services.budget_service import budget_service
 router = APIRouter(prefix="/budgets", tags=["Budgets"])
 
 
-@router.post("/", response_model=BudgetResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=BudgetResponse)
 def set_or_update_budget(
     budget_in: BudgetCreate,
+    response: Response,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Create or update a category budget for a specific month and year."""
+    """Create or update a category budget for a specific month and year.
+
+    Returns 201 Created if a new budget record was created, or 200 OK if updated.
+    """
     try:
-        return budget_service.set_budget(db, current_user.id, budget_in)
-    except ValueError as e:
+        budget, is_created = budget_service.set_budget(db, current_user.id, budget_in)
+        response.status_code = status.HTTP_201_CREATED if is_created else status.HTTP_200_OK
+        return budget
+    except NotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+    except ValidationError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
@@ -64,3 +76,4 @@ def get_category_budget_status(
             detail="Budget not found for this category and period",
         )
     return summary
+

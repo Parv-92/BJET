@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from typing import List, Optional
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, defer
 from sqlalchemy import desc
 
 from src.models.transaction import Transaction, TransactionStatus
@@ -33,7 +33,11 @@ class TransactionRepository(BaseRepository[Transaction]):
     ) -> List[Transaction]:
         query = (
             db.query(Transaction)
-            .options(joinedload(Transaction.category), joinedload(Transaction.merchant))
+            .options(
+                joinedload(Transaction.category),
+                joinedload(Transaction.merchant),
+                defer(Transaction.raw_extracted_text),
+            )
             .filter(Transaction.user_id == user_id)
         )
         if category_id is not None:
@@ -106,5 +110,44 @@ class TransactionRepository(BaseRepository[Transaction]):
             return True
         return False
 
+    def find_by_upi_reference_id(
+        self, db: Session, user_id: int, upi_reference_id: str
+    ) -> Optional[Transaction]:
+        """Find an existing transaction with the same UPI UTR reference for this user."""
+        return (
+            db.query(Transaction)
+            .filter(
+                Transaction.user_id == user_id,
+                Transaction.upi_reference_id == upi_reference_id.strip(),
+            )
+            .first()
+        )
+
+    def find_potential_duplicate(
+        self,
+        db: Session,
+        user_id: int,
+        amount,
+        merchant_raw_name: Optional[str],
+        start_time: datetime,
+        end_time: datetime,
+    ) -> Optional[Transaction]:
+        """Fallback check for matching amount within a time window for the same user."""
+        query = (
+            db.query(Transaction)
+            .filter(
+                Transaction.user_id == user_id,
+                Transaction.amount == amount,
+                Transaction.timestamp >= start_time,
+                Transaction.timestamp <= end_time,
+            )
+        )
+        if merchant_raw_name:
+            query = query.filter(
+                Transaction.merchant_raw_name.ilike(f"%{merchant_raw_name.strip()}%")
+            )
+        return query.first()
+
 
 transaction_repo = TransactionRepository()
+

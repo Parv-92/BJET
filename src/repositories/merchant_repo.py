@@ -10,6 +10,9 @@ class MerchantRepository(BaseRepository[Merchant]):
     def __init__(self):
         super().__init__(Merchant)
 
+    def get_by_id(self, db: Session, id: int) -> Optional[Merchant]:
+        return self.get(db, id)
+
     def find_by_clean_name(self, db: Session, clean_name: str) -> Optional[Merchant]:
         return (
             db.query(Merchant)

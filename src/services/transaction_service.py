@@ -2,11 +2,13 @@ from datetime import datetime
 from typing import List, Optional
 from sqlalchemy.orm import Session
 
+from src.core.exceptions import NotFoundError, TransactionNotFoundError, ValidationError
 from src.models.transaction import Transaction, TransactionStatus
 from src.repositories.transaction_repo import transaction_repo
 from src.repositories.category_repo import category_repo
 from src.repositories.merchant_repo import merchant_repo
 from src.schemas.transaction import TransactionCreate, TransactionUpdate
+from src.services.categorization_service import categorization_service
 
 
 class TransactionService:
@@ -48,7 +50,17 @@ class TransactionService:
         if transaction_in.category_id is not None:
             category = category_repo.get_by_id_for_user(db, transaction_in.category_id, user_id)
             if not category:
-                raise ValueError("Specified category does not exist or is not accessible")
+                raise NotFoundError(f"Category with ID {transaction_in.category_id} not found or not accessible.")
+        else:
+            # Intelligent Categorization fallback: UserMerchantRule -> Merchant default -> Uncategorized
+            cat_prediction = categorization_service.predict_category(
+                db=db,
+                user_id=user_id,
+                merchant_name=transaction_in.merchant_raw_name,
+                upi_vpa=transaction_in.upi_vpa,
+                merchant_id=transaction_in.merchant_id,
+            )
+            transaction_in.category_id = cat_prediction.category_id
 
         # Auto-create or resolve merchant if merchant_raw_name is provided but merchant_id is not
         if not transaction_in.merchant_id and transaction_in.merchant_raw_name:
@@ -56,7 +68,7 @@ class TransactionService:
                 db=db,
                 name=transaction_in.merchant_raw_name,
                 upi_vpa=transaction_in.upi_vpa,
-                default_category_id=transaction_in.category_id,
+                default_category_id=None,
             )
             transaction_in.merchant_id = merchant.id
 
@@ -78,12 +90,22 @@ class TransactionService:
     ) -> Transaction:
         transaction = transaction_repo.get_by_id_for_user(db, user_id, transaction_id)
         if not transaction:
-            raise KeyError("Transaction not found")
+            raise TransactionNotFoundError(f"Transaction #{transaction_id} not found.")
+
+        # Lifecycle protection: generic PUT update cannot transition to or from PENDING_CONFIRMATION
+        if update_in.status is not None and update_in.status != transaction.status:
+            if transaction.status == TransactionStatus.PENDING_CONFIRMATION:
+                raise ValidationError(
+                    f"Pending transactions cannot be confirmed or transitioned via PUT. "
+                    f"Use POST /api/v1/transactions/{transaction_id}/confirm instead."
+                )
+            if update_in.status == TransactionStatus.PENDING_CONFIRMATION:
+                raise ValidationError("Transactions cannot be transitioned into PENDING_CONFIRMATION.")
 
         if update_in.category_id is not None:
             category = category_repo.get_by_id_for_user(db, update_in.category_id, user_id)
             if not category:
-                raise ValueError("Specified category does not exist or is not accessible")
+                raise NotFoundError(f"Category with ID {update_in.category_id} not found or not accessible.")
 
         return transaction_repo.update_for_user(db, user_id, transaction, update_in)
 
@@ -92,3 +114,4 @@ class TransactionService:
 
 
 transaction_service = TransactionService()
+

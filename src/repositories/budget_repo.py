@@ -42,9 +42,19 @@ class BudgetRepository(BaseRepository[Budget]):
             .all()
         )
 
+    def get_by_id_for_user(
+        self, db: Session, user_id: int, budget_id: int
+    ) -> Optional[Budget]:
+        return (
+            db.query(Budget)
+            .options(joinedload(Budget.category))
+            .filter(Budget.id == budget_id, Budget.user_id == user_id)
+            .first()
+        )
+
     def create_or_update(
         self, db: Session, user_id: int, budget_in: BudgetCreate
-    ) -> Budget:
+    ) -> tuple[Budget, bool]:
         existing = self.get_by_category_and_period(
             db, user_id, budget_in.category_id, budget_in.month, budget_in.year
         )
@@ -53,7 +63,7 @@ class BudgetRepository(BaseRepository[Budget]):
             db.add(existing)
             db.commit()
             db.refresh(existing)
-            return existing
+            return existing, False
 
         budget = Budget(
             user_id=user_id,
@@ -65,18 +75,28 @@ class BudgetRepository(BaseRepository[Budget]):
         db.add(budget)
         db.commit()
         db.refresh(budget)
+        return budget, True
+
+    def update(
+        self, db: Session, budget: Budget, amount_limit: Decimal
+    ) -> Budget:
+        budget.amount_limit = amount_limit
+        db.add(budget)
+        db.commit()
+        db.refresh(budget)
         return budget
+
 
     def get_spent_amount(
         self, db: Session, user_id: int, category_id: int, month: int, year: int
     ) -> Decimal:
-        """Sum confirmed transactions for this category, month, and year."""
+        """Sum finalized confirmed and manual transactions for this category, month, and year."""
         result = (
             db.query(func.coalesce(func.sum(Transaction.amount), 0))
             .filter(
                 Transaction.user_id == user_id,
                 Transaction.category_id == category_id,
-                Transaction.status != TransactionStatus.PENDING_CONFIRMATION,
+                Transaction.status.in_([TransactionStatus.CONFIRMED, TransactionStatus.MANUAL]),
                 extract("month", Transaction.timestamp) == month,
                 extract("year", Transaction.timestamp) == year,
             )

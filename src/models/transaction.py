@@ -51,3 +51,8 @@ class Transaction(Base, TimestampMixin):
     user = relationship("User", back_populates="transactions")
     merchant = relationship("Merchant", back_populates="transactions")
     category = relationship("Category", back_populates="transactions")
+
+    @property
+    def has_receipt(self) -> bool:
+        return bool(self.receipt_image_path)
+

@@ -61,7 +61,20 @@ def auth_headers(client: TestClient) -> dict[str, str]:
 
     login_resp = client.post(
         "/api/v1/auth/login",
-        data={"username": "tester@example.com", "password": "Password123!"},
+        json={"email": "tester@example.com", "password": "Password123!"},
     )
     token = login_resp.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
+
+
+
+@pytest.fixture(autouse=True)
+def cleanup_test_uploads():
+    """Ensure uploads folder is cleaned up after each test run."""
+    import shutil
+    import os
+    from src.core.config import settings
+    yield
+    if os.path.exists(settings.UPLOAD_DIR):
+        shutil.rmtree(settings.UPLOAD_DIR, ignore_errors=True)
+

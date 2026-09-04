@@ -1,6 +1,7 @@
 from typing import List, Optional
 from sqlalchemy.orm import Session
 
+from src.core.exceptions import NotFoundError
 from src.models.budget import Budget
 from src.repositories.budget_repo import budget_repo
 from src.repositories.category_repo import category_repo
@@ -8,10 +9,12 @@ from src.schemas.budget import BudgetCreate, BudgetSummary
 
 
 class BudgetService:
-    def set_budget(self, db: Session, user_id: int, budget_in: BudgetCreate) -> Budget:
+    def set_budget(
+        self, db: Session, user_id: int, budget_in: BudgetCreate
+    ) -> tuple[Budget, bool]:
         category = category_repo.get_by_id_for_user(db, budget_in.category_id, user_id)
         if not category:
-            raise ValueError("Category does not exist or is not accessible")
+            raise NotFoundError(f"Category with ID {budget_in.category_id} not found or not accessible.")
 
         return budget_repo.create_or_update(db, user_id, budget_in)
 
@@ -31,3 +34,4 @@ class BudgetService:
 
 
 budget_service = BudgetService()
+
