@@ -1,0 +1,14 @@
+{
+  "name": "expo-pdf-page-renderer",
+  "version": "1.0.0",
+  "keywords": [
+    "react-native",
+    "expo",
+    "expo-module"
+  ],
+  "peerDependencies": {
+    "expo": "*"
+  },
+  "main": "index.ts",
+  "types": "index.ts"
+}

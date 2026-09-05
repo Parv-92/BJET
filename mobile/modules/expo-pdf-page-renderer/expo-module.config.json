@@ -1,0 +1,7 @@
+{
+  "name": "expo-pdf-page-renderer",
+  "platforms": ["android"],
+  "android": {
+    "modules": ["expo.modules.pdfrenderer.ExpoPdfRendererModule"]
+  }
+}

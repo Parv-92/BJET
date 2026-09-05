@@ -1,3 +1,4 @@
+# Python
 .venv/
 __pycache__/
 *.py[cod]
@@ -8,8 +9,27 @@ __pycache__/
 .pytest_cache/
 .coverage
 htmlcov/
-dist/
-build/
 *.egg-info/
 uploads/
 
+# General build output
+dist/
+build/
+
+# Node.js
+node_modules/
+*.tsbuildinfo
+
+# Expo
+.expo/
+
+# Gradle
+.gradle/
+
+# Android local configuration
+local.properties
+
+# Environment files
+.env
+.env.local
+.env.*.local

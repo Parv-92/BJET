@@ -1,0 +1,11 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "skipLibCheck": true,
+    "paths": {
+      "expo-pdf-page-renderer": ["./modules/expo-pdf-page-renderer"]
+    }
+  },
+  "exclude": ["dist", "node_modules"]
+}

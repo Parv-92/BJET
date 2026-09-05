@@ -1,0 +1,72 @@
+/**
+ * Bjet Mobile - Budget TanStack Query Hooks (Phase 8)
+ *
+ * Provides hooks for:
+ * - Querying monthly budget summary: ['budgets', 'summary', month, year]
+ * - Querying specific category budget status: ['budgets', categoryId, month, year]
+ * - Mutating/upserting category budgets via POST /api/v1/budgets
+ *
+ * Invalidation Strategy:
+ * - Invalidation of broader ['budgets', 'summary'] query family automatically refreshes
+ *   all monthly summaries and the Dashboard.
+ * - Invalidation of specific ['budgets', categoryId, month, year] refreshes category status.
+ */
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  getBudgetSummaryApi,
+  getCategoryBudgetStatusApi,
+  setBudgetApi,
+} from '../api/budgets';
+import { Budget, BudgetSummary, SetBudgetRequest } from '../types/api';
+
+/**
+ * Hook to retrieve monthly budget summary for a given month and year.
+ * Query Key: ['budgets', 'summary', month, year]
+ */
+export function useBudgetSummary(month: number, year: number) {
+  return useQuery<BudgetSummary[], Error>({
+    queryKey: ['budgets', 'summary', month, year],
+    queryFn: () => getBudgetSummaryApi(month, year),
+    staleTime: 60_000, // 60 seconds
+    retry: 1,
+  });
+}
+
+/**
+ * Hook to retrieve single category budget status for a given month and year.
+ * Query Key: ['budgets', categoryId, month, year]
+ */
+export function useCategoryBudgetStatus(
+  categoryId: number,
+  month: number,
+  year: number,
+  enabled: boolean = true
+) {
+  return useQuery<BudgetSummary, Error>({
+    queryKey: ['budgets', categoryId, month, year],
+    queryFn: () => getCategoryBudgetStatusApi(categoryId, month, year),
+    staleTime: 60_000,
+    retry: 1,
+    enabled: enabled && categoryId > 0,
+  });
+}
+
+/**
+ * Hook to create or upsert a category budget limit.
+ * Handles both 201 Created and 200 OK responses smoothly.
+ */
+export function useSetBudget() {
+  const queryClient = useQueryClient();
+
+  return useMutation<Budget, Error, SetBudgetRequest>({
+    mutationFn: (data: SetBudgetRequest) => setBudgetApi(data),
+    onSuccess: (savedBudget, variables) => {
+      // Invalidate the broader summary family: automatically updates Dashboard and all monthly lists
+      queryClient.invalidateQueries({ queryKey: ['budgets', 'summary'] });
+      // Invalidate specific category budget status
+      queryClient.invalidateQueries({
+        queryKey: ['budgets', variables.category_id, variables.month, variables.year],
+      });
+    },
+  });
+}
